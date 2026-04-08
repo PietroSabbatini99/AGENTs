@@ -1,0 +1,20 @@
+[project]
+name = "agent-team"
+version = "0.1.0"
+description = "A collaborative team of five specialist AI agents — Financial Expert, Creative Director, Architect, Project Manager, and Law Expert — working together in a shared workspace."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "anthropic>=0.40.0",
+    "python-dotenv>=1.0.0",
+]
+
+[project.scripts]
+team = "agent_team.main:main"
+
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
