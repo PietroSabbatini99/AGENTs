@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Agent Team</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <div id="app">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-title">Agent Team</div>
+        <div class="brand-sub">Five specialists. One workspace.</div>
+      </div>
+
+      <nav class="tabs">
+        <button class="tab active" data-tab="chat">Chat</button>
+        <button class="tab" data-tab="knowledge">Knowledge</button>
+        <button class="tab" data-tab="team">Team</button>
+        <button class="tab" data-tab="settings">Settings</button>
+      </nav>
+
+      <div class="roster">
+        <div class="roster-title">Team</div>
+        <ul id="roster-list"></ul>
+      </div>
+
+      <div class="sidebar-foot">
+        <button id="reset-workspace" class="ghost">Reset workspace</button>
+      </div>
+    </aside>
+
+    <main class="main">
+      <!-- ============================================================= -->
+      <!-- CHAT                                                          -->
+      <!-- ============================================================= -->
+      <section class="panel active" data-panel="chat">
+        <header class="panel-head">
+          <h1>Group chat</h1>
+          <p class="hint">
+            Plain text → <code>/brief</code> (whole team). Type
+            <code>@Atlas ...</code> or <code>/ask Iris ...</code> for a single
+            specialist. <code>/discuss &lt;topic&gt; --rounds 2</code> for a
+            round-robin. Drop a PDF or text file to share it with the team.
+          </p>
+        </header>
+
+        <div id="chat-log" class="chat-log"></div>
+
+        <div id="drop-zone" class="drop-zone hidden">Drop to share with the team</div>
+
+        <form id="chat-form" class="composer">
+          <div class="composer-row">
+            <button type="button" id="attach-btn" class="icon-btn" title="Attach file">＋</button>
+            <input type="file" id="attach-input" hidden accept=".pdf,.txt,.md,.markdown,.rst,.csv,.json,.log">
+            <textarea
+              id="chat-input"
+              rows="2"
+              placeholder="Share an idea, ask a specialist, or type /brief, /ask, /discuss…"
+            ></textarea>
+            <button type="submit" id="send-btn">Send</button>
+          </div>
+          <div class="composer-meta">
+            <span id="compose-hint">Enter to send · Shift+Enter for newline</span>
+            <span id="status" class="status"></span>
+          </div>
+        </form>
+      </section>
+
+      <!-- ============================================================= -->
+      <!-- KNOWLEDGE (per-agent RAG)                                     -->
+      <!-- ============================================================= -->
+      <section class="panel" data-panel="knowledge">
+        <header class="panel-head">
+          <h1>Knowledge bases</h1>
+          <p class="hint">
+            Each specialist has a private library. Upload PDFs, markdown, or
+            text. Relevant excerpts are retrieved and injected into that
+            agent's prompt on every reply.
+          </p>
+        </header>
+
+        <div class="kb-layout">
+          <div class="kb-agents">
+            <ul id="kb-agent-list"></ul>
+          </div>
+
+          <div class="kb-detail">
+            <div id="kb-header" class="kb-header">
+              <div>
+                <div class="kb-name" id="kb-agent-name">—</div>
+                <div class="kb-role" id="kb-agent-role"></div>
+              </div>
+              <label class="upload-btn">
+                Add source
+                <input type="file" id="kb-upload" hidden accept=".pdf,.txt,.md,.markdown,.rst,.csv,.json">
+              </label>
+            </div>
+
+            <ul id="kb-sources" class="kb-sources"></ul>
+            <div id="kb-empty" class="kb-empty">No sources yet. Add a PDF or text file.</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================= -->
+      <!-- TEAM (roster + add new agent)                                 -->
+      <!-- ============================================================= -->
+      <section class="panel" data-panel="team">
+        <header class="panel-head">
+          <h1>Team roster</h1>
+          <p class="hint">
+            Five specialists ship with the team. Add your own: name, role,
+            and a system prompt — the collaboration preamble is added
+            automatically.
+          </p>
+        </header>
+
+        <div class="team-grid">
+          <div class="team-list">
+            <ul id="team-roster"></ul>
+          </div>
+
+          <form id="add-agent-form" class="add-agent">
+            <h2>Add a specialist</h2>
+            <label>Name
+              <input type="text" name="name" placeholder="e.g. Mercer" required>
+            </label>
+            <label>Role
+              <input type="text" name="role" placeholder="e.g. Data Scientist" required>
+            </label>
+            <label>System prompt
+              <textarea
+                name="system_prompt"
+                rows="8"
+                placeholder="Describe the specialist's intellectual lineage, frameworks, working style, and typical outputs…"
+                required
+              ></textarea>
+            </label>
+            <button type="submit">Add to the team</button>
+            <div id="add-agent-status" class="status"></div>
+          </form>
+        </div>
+      </section>
+
+      <!-- ============================================================= -->
+      <!-- SETTINGS                                                      -->
+      <!-- ============================================================= -->
+      <section class="panel" data-panel="settings">
+        <header class="panel-head">
+          <h1>Settings</h1>
+          <p class="hint">
+            Connect your Anthropic account. The key is stored locally in
+            your workspace's <code>config.json</code> and never leaves this
+            machine.
+          </p>
+        </header>
+
+        <form id="settings-form" class="settings-form">
+          <label>Anthropic API key
+            <input
+              type="password"
+              name="api_key"
+              id="api-key-input"
+              placeholder="sk-ant-…"
+              autocomplete="off"
+            >
+          </label>
+          <div id="api-key-status" class="api-key-status"></div>
+
+          <label>Model
+            <input type="text" name="model" id="model-input" placeholder="claude-opus-4-6">
+          </label>
+
+          <button type="submit">Save settings</button>
+          <div id="settings-status" class="status"></div>
+        </form>
+
+        <div class="settings-help">
+          <h3>Need a key?</h3>
+          <p>
+            Create one at
+            <a href="https://console.anthropic.com/" target="_blank" rel="noopener">
+              console.anthropic.com
+            </a>
+            under <em>Settings → API Keys</em>. Opus 4.6 is the default model;
+            you can also use Sonnet 4.6 or Haiku 4.5.
+          </p>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

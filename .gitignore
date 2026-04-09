@@ -28,6 +28,9 @@ env/
 workspace/messages/*
 workspace/documents/*
 workspace/decisions/*
+workspace/rag/
+workspace/config.json
+workspace/custom_agents.json
 !workspace/messages/.gitkeep
 !workspace/documents/.gitkeep
 !workspace/decisions/.gitkeep

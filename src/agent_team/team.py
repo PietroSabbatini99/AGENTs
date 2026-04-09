@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
-from typing import Callable, Iterable
+from typing import Callable, Iterable, Mapping
 
 import anthropic
 
@@ -34,6 +34,9 @@ DEFAULT_MAX_TOKENS = 2048
 
 # Optional callback shape: (agent_key, agent_name, text_chunk) -> None
 StreamCallback = Callable[[str, str, str], None]
+
+# Optional RAG hook: (profile, user_message) -> extra system context (may be "").
+ContextProvider = Callable[[AgentProfile, str], str]
 
 
 @dataclass
@@ -55,27 +58,50 @@ class Team:
         client: anthropic.Anthropic | None = None,
         model: str = DEFAULT_MODEL,
         max_tokens: int = DEFAULT_MAX_TOKENS,
+        profiles: Mapping[str, AgentProfile] | None = None,
+        default_order: Iterable[str] | None = None,
+        context_provider: ContextProvider | None = None,
     ) -> None:
         self.workspace = workspace
         self.client = client or anthropic.Anthropic()
         self.model = model
         self.max_tokens = max_tokens
+        # Allow callers (the web UI) to pass a live registry that includes
+        # user-added agents. Defaults to the built-in five.
+        self._profiles: Mapping[str, AgentProfile] = (
+            profiles if profiles is not None else AGENT_PROFILES
+        )
+        self._default_order: list[str] = (
+            list(default_order) if default_order is not None else list(DEFAULT_ROUND_ORDER)
+        )
+        self.context_provider = context_provider
 
     # ---- agent lookup ---------------------------------------------------
 
     def get_profile(self, key_or_name: str) -> AgentProfile:
         k = key_or_name.lower().strip()
-        if k in AGENT_PROFILES:
-            return AGENT_PROFILES[k]
-        for profile in AGENT_PROFILES.values():
+        if k in self._profiles:
+            return self._profiles[k]
+        for profile in self._profiles.values():
             if profile.name.lower() == k:
                 return profile
-        valid = ", ".join(AGENT_PROFILES.keys())
+        valid = ", ".join(self._profiles.keys())
         raise KeyError(f"Unknown specialist {key_or_name!r}. Try one of: {valid}")
 
     @property
     def profiles(self) -> list[AgentProfile]:
-        return [AGENT_PROFILES[k] for k in DEFAULT_ROUND_ORDER]
+        order = [k for k in self._default_order if k in self._profiles]
+        # Append any registered profiles not explicitly in the order.
+        for k in self._profiles.keys():
+            if k not in order:
+                order.append(k)
+        return [self._profiles[k] for k in order]
+
+    @property
+    def default_order(self) -> list[str]:
+        return [k for k in self._default_order if k in self._profiles] + [
+            k for k in self._profiles.keys() if k not in self._default_order
+        ]
 
     # ---- core single-call -----------------------------------------------
 
@@ -93,12 +119,23 @@ class Team:
         # Inject the workspace state into the system prompt. This is the
         # mechanism by which agents "see" what each other have written.
         snapshot = self.workspace.snapshot()
-        system = (
-            f"{profile.system_prompt}\n\n"
-            f"---\n\n"
-            f"{snapshot}\n\n"
+
+        # Let the context provider (e.g. the web UI's RAG store) add any
+        # retrieved knowledge for this agent. Empty string if disabled.
+        extra = ""
+        if self.context_provider is not None:
+            try:
+                extra = self.context_provider(profile, user_message) or ""
+            except Exception:
+                extra = ""
+
+        system_parts = [profile.system_prompt, "---", snapshot]
+        if extra.strip():
+            system_parts.extend(["---", extra.strip()])
+        system_parts.append(
             f"You are {profile.name}, the {profile.role}. Reply in your own voice."
         )
+        system = "\n\n".join(system_parts)
 
         chunks: list[str] = []
         with self.client.messages.stream(
@@ -159,7 +196,7 @@ class Team:
         register, Atlas works the numbers, Nova plans the execution, Solon
         flags the legal exposure.
         """
-        order_keys = list(order) if order is not None else DEFAULT_ROUND_ORDER
+        order_keys = list(order) if order is not None else self.default_order
 
         # Post the brief itself as a user message.
         self.workspace.post_message(
@@ -209,7 +246,7 @@ class Team:
         Round 1 is each agent's opening view. Round 2+ is rebuttals and
         synthesis — each agent has now read every other agent's prior posts.
         """
-        order_keys = list(order) if order is not None else DEFAULT_ROUND_ORDER
+        order_keys = list(order) if order is not None else self.default_order
 
         self.workspace.post_message(
             sender_key="user",

@@ -5,6 +5,7 @@ Subcommands:
     team discuss "<topic>" [--rounds N] — round-robin discussion
     team ask <specialist> "<question>"  — single specialist
     team repl                           — interactive REPL
+    team serve [--host H --port P]      — launch the web UI
     team list                           — show the team roster
     team workspace                      — print the workspace snapshot
     team reset                          — wipe the workspace
@@ -176,6 +177,30 @@ def cmd_reset(_: argparse.Namespace, team: Team) -> None:
     print("Workspace cleared.")
 
 
+def cmd_serve(args: argparse.Namespace) -> None:
+    """Launch the web UI. Does not need a Team — the app builds its own per request."""
+    try:
+        import uvicorn
+    except ImportError as e:
+        print(
+            "The web UI needs `fastapi` and `uvicorn`. Install them with:\n"
+            "    pip install -e .",
+            file=sys.stderr,
+        )
+        raise SystemExit(1) from e
+
+    from agent_team.web.app import create_app
+
+    workspace_root = args.workspace.resolve()
+    workspace_root.mkdir(parents=True, exist_ok=True)
+    app = create_app(workspace_root)
+
+    print(f"\n{_BOLD}Agent Team UI{_RESET}")
+    print(f"  workspace: {workspace_root}")
+    print(f"  open:      http://{args.host}:{args.port}\n")
+    uvicorn.run(app, host=args.host, port=args.port, log_level="info")
+
+
 # ---------------------------------------------------------------------------
 # Argument parsing
 # ---------------------------------------------------------------------------
@@ -215,6 +240,11 @@ def build_parser() -> argparse.ArgumentParser:
     p_repl = sub.add_parser("repl", help="Interactive REPL.")
     p_repl.set_defaults(func=cmd_repl)
 
+    p_serve = sub.add_parser("serve", help="Launch the web UI.")
+    p_serve.add_argument("--host", default="127.0.0.1", help="Bind host (default 127.0.0.1)")
+    p_serve.add_argument("--port", type=int, default=8000, help="Bind port (default 8000)")
+    p_serve.set_defaults(func=cmd_serve)
+
     p_list = sub.add_parser("list", help="Show the team roster.")
     p_list.set_defaults(func=cmd_list)
 
@@ -231,13 +261,23 @@ def main() -> None:
     # Lazy imports so `python -m agent_team.main --help` and the parser tests
     # work in environments that don't yet have anthropic / python-dotenv
     # installed. The full CLI requires both, installed via `pip install -e .`.
-    from dotenv import load_dotenv
+    try:
+        from dotenv import load_dotenv
 
-    from agent_team.team import Team
+        load_dotenv()
+    except ImportError:
+        pass
 
-    load_dotenv()
     parser = build_parser()
     args = parser.parse_args()
+
+    # `serve` launches the web UI and does not need a pre-built Team — the
+    # app instantiates one per request using the saved settings.
+    if args.command == "serve":
+        args.func(args)
+        return
+
+    from agent_team.team import Team
 
     workspace = Workspace(args.workspace)
     team = Team(workspace=workspace)
