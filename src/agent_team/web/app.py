@@ -4,7 +4,7 @@ Routes:
 
     GET  /                    — the single-page UI
     GET  /api/state           — team + config snapshot
-    POST /api/config          — set API key / model
+    POST /api/config          — set base URL / model
     GET  /api/agents          — list all agents (built-in + custom)
     POST /api/agents          — add a custom agent
     DELETE /api/agents/{key}  — remove a custom agent
@@ -53,7 +53,7 @@ def create_app(workspace_root: Path) -> FastAPI:
     app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
     # ---- lazy Team builder -------------------------------------------------
-    # We construct a fresh Team per request because (a) the API key may have
+    # We construct a fresh Team per request because (a) the config may have
     # just changed on the settings screen and (b) the registry may include a
     # just-added custom agent. The client is cheap to instantiate.
 
@@ -65,7 +65,7 @@ def create_app(workspace_root: Path) -> FastAPI:
         cfg = config_store.get()
         client = OpenAI(
             base_url=cfg.base_url,
-            api_key=cfg.effective_api_key,
+            api_key="ollama",
         )
         return Team(
             workspace=workspace,
@@ -113,7 +113,6 @@ def create_app(workspace_root: Path) -> FastAPI:
         body = await request.json()
         cfg = config_store.update(
             base_url=body.get("base_url"),
-            api_key=body.get("api_key"),
             model=body.get("model"),
         )
         return {"config": cfg.public_dict()}

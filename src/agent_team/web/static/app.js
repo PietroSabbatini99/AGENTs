@@ -12,7 +12,7 @@ const AGENT_COLORS = {
 
 const state = {
   agents: [],
-  config: { base_url: "", api_key_set: false, api_key_masked: "", model: "" },
+  config: { base_url: "", model: "" },
   selectedKb: null,
   sending: false,
 };
@@ -243,20 +243,7 @@ async function loadKbSources(agentKey) {
 
 function renderSettingsTab() {
   $("#base-url-input").value = state.config.base_url || "";
-  const input = $("#api-key-input");
-  input.value = "";
-  input.placeholder = state.config.api_key_set
-    ? `Saved: ${state.config.api_key_masked}`
-    : "leave blank for Ollama";
   $("#model-input").value = state.config.model || "";
-  const status = $("#api-key-status");
-  if (state.config.api_key_set) {
-    status.textContent = `API key saved · ${state.config.api_key_masked}`;
-    status.className = "api-key-status set";
-  } else {
-    status.textContent = "No API key set (fine for local Ollama).";
-    status.className = "api-key-status";
-  }
 }
 
 // ---------------------------------------------------------------------------
@@ -496,7 +483,6 @@ $("#settings-form").addEventListener("submit", async (e) => {
   e.preventDefault();
   const form = e.target;
   const base_url = form.base_url.value;
-  const api_key = form.api_key.value;
   const model = form.model.value;
   const status = $("#settings-status");
   status.textContent = "";
@@ -504,7 +490,6 @@ $("#settings-form").addEventListener("submit", async (e) => {
 
   const body = {};
   if (base_url) body.base_url = base_url;
-  if (api_key) body.api_key = api_key;
   if (model) body.model = model;
 
   const r = await fetch("/api/config", {

@@ -167,17 +167,6 @@
             >
           </label>
 
-          <label>API key <span class="optional">(optional for local models)</span>
-            <input
-              type="password"
-              name="api_key"
-              id="api-key-input"
-              placeholder="leave blank for Ollama"
-              autocomplete="off"
-            >
-          </label>
-          <div id="api-key-status" class="api-key-status"></div>
-
           <label>Model
             <input type="text" name="model" id="model-input" placeholder="qwen3.5:4b">
           </label>
@@ -193,12 +182,6 @@
             then run <code>ollama pull qwen3.5:4b</code> and
             <code>ollama serve</code>. The defaults above will work out of the
             box.
-          </p>
-          <h3>Remote providers</h3>
-          <p>
-            Point the Base URL at any OpenAI-compatible endpoint (OpenAI,
-            Together, Groq, vLLM, LM Studio, etc.) and paste the
-            corresponding API key and model name.
           </p>
         </div>
       </section>

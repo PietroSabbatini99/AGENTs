@@ -1,7 +1,7 @@
 """A team of specialist AI agents that collaborate through a shared workspace.
 
 The package is intentionally lazy: importing `agent_team` does not pull in
-`anthropic`, so the Workspace and profiles are usable as standalone library
+`openai`, so the Workspace and profiles are usable as standalone library
 pieces (handy for tests and for swapping the LLM backend).
 """
 
