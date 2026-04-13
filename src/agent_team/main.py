@@ -259,7 +259,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main() -> None:
     # Lazy imports so `python -m agent_team.main --help` and the parser tests
-    # work in environments that don't yet have anthropic / python-dotenv
+    # work in environments that don't yet have openai / python-dotenv
     # installed. The full CLI requires both, installed via `pip install -e .`.
     try:
         from dotenv import load_dotenv

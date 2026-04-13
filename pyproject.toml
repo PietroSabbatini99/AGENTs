@@ -5,7 +5,7 @@ description = "A collaborative team of five specialist AI agents — Financial E
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
-    "anthropic>=0.40.0",
+    "openai>=1.0.0",
     "python-dotenv>=1.0.0",
     "fastapi>=0.110.0",
     "uvicorn[standard]>=0.27.0",

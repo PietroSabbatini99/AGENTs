@@ -1,7 +1,7 @@
 """The team orchestrator.
 
-Wraps the Anthropic SDK and the shared Workspace into a small set of
-collaboration patterns:
+Wraps an OpenAI-compatible client (Ollama, vLLM, LM Studio, or any remote
+provider) and the shared Workspace into a small set of collaboration patterns:
 
     Team.ask(specialist, question)         — single specialist replies
     Team.brief(project_idea)               — every specialist weighs in once
@@ -18,7 +18,7 @@ import os
 from dataclasses import dataclass
 from typing import Callable, Iterable, Mapping
 
-import anthropic
+from openai import OpenAI
 
 from agent_team.profiles import (
     AGENT_PROFILES,
@@ -28,7 +28,10 @@ from agent_team.profiles import (
 from agent_team.workspace import Workspace
 
 
-DEFAULT_MODEL = os.environ.get("AGENT_TEAM_MODEL", "claude-opus-4-6")
+DEFAULT_BASE_URL = os.environ.get(
+    "AGENT_TEAM_BASE_URL", "http://localhost:11434/v1"
+)
+DEFAULT_MODEL = os.environ.get("AGENT_TEAM_MODEL", "qwen3.5:4b")
 DEFAULT_MAX_TOKENS = 2048
 
 
@@ -50,12 +53,12 @@ class Reply:
 
 
 class Team:
-    """A team of five specialists that share one Workspace."""
+    """A team of specialists that share one Workspace."""
 
     def __init__(
         self,
         workspace: Workspace,
-        client: anthropic.Anthropic | None = None,
+        client: OpenAI | None = None,
         model: str = DEFAULT_MODEL,
         max_tokens: int = DEFAULT_MAX_TOKENS,
         profiles: Mapping[str, AgentProfile] | None = None,
@@ -63,7 +66,10 @@ class Team:
         context_provider: ContextProvider | None = None,
     ) -> None:
         self.workspace = workspace
-        self.client = client or anthropic.Anthropic()
+        self.client = client or OpenAI(
+            base_url=DEFAULT_BASE_URL,
+            api_key="ollama",          # Ollama ignores this but the SDK requires it
+        )
         self.model = model
         self.max_tokens = max_tokens
         # Allow callers (the web UI) to pass a live registry that includes
@@ -138,13 +144,19 @@ class Team:
         system = "\n\n".join(system_parts)
 
         chunks: list[str] = []
-        with self.client.messages.stream(
+        stream = self.client.chat.completions.create(
             model=self.model,
             max_tokens=self.max_tokens,
-            system=system,
-            messages=[{"role": "user", "content": user_message}],
-        ) as stream:
-            for text in stream.text_stream:
+            messages=[
+                {"role": "system", "content": system},
+                {"role": "user", "content": user_message},
+            ],
+            stream=True,
+        )
+        for chunk in stream:
+            delta = chunk.choices[0].delta
+            text = delta.content if delta and delta.content else ""
+            if text:
                 chunks.append(text)
                 if on_stream is not None:
                     on_stream(profile.key, profile.name, text)

@@ -58,17 +58,15 @@ def create_app(workspace_root: Path) -> FastAPI:
     # just-added custom agent. The client is cheap to instantiate.
 
     def build_team():
-        import anthropic
+        from openai import OpenAI
 
         from agent_team.team import Team
 
         cfg = config_store.get()
-        if not cfg.has_api_key:
-            raise HTTPException(
-                status_code=400,
-                detail="Anthropic API key is not set. Open Settings and paste your key.",
-            )
-        client = anthropic.Anthropic(api_key=cfg.anthropic_api_key)
+        client = OpenAI(
+            base_url=cfg.base_url,
+            api_key=cfg.effective_api_key,
+        )
         return Team(
             workspace=workspace,
             client=client,
@@ -113,9 +111,11 @@ def create_app(workspace_root: Path) -> FastAPI:
     @app.post("/api/config")
     async def update_config(request: Request):
         body = await request.json()
-        api_key = body.get("api_key")
-        model = body.get("model")
-        cfg = config_store.update(api_key=api_key, model=model)
+        cfg = config_store.update(
+            base_url=body.get("base_url"),
+            api_key=body.get("api_key"),
+            model=body.get("model"),
+        )
         return {"config": cfg.public_dict()}
 
     # ---- agents -----------------------------------------------------------

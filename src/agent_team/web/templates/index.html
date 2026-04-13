@@ -151,26 +151,35 @@
         <header class="panel-head">
           <h1>Settings</h1>
           <p class="hint">
-            Connect your Anthropic account. The key is stored locally in
-            your workspace's <code>config.json</code> and never leaves this
-            machine.
+            Configure your LLM backend. Defaults to a local Ollama instance.
+            Settings are stored in your workspace's <code>config.json</code>
+            and never leave this machine.
           </p>
         </header>
 
         <form id="settings-form" class="settings-form">
-          <label>Anthropic API key
+          <label>Base URL
+            <input
+              type="text"
+              name="base_url"
+              id="base-url-input"
+              placeholder="http://localhost:11434/v1"
+            >
+          </label>
+
+          <label>API key <span class="optional">(optional for local models)</span>
             <input
               type="password"
               name="api_key"
               id="api-key-input"
-              placeholder="sk-ant-…"
+              placeholder="leave blank for Ollama"
               autocomplete="off"
             >
           </label>
           <div id="api-key-status" class="api-key-status"></div>
 
           <label>Model
-            <input type="text" name="model" id="model-input" placeholder="claude-opus-4-6">
+            <input type="text" name="model" id="model-input" placeholder="qwen3.5:4b">
           </label>
 
           <button type="submit">Save settings</button>
@@ -178,14 +187,18 @@
         </form>
 
         <div class="settings-help">
-          <h3>Need a key?</h3>
+          <h3>Local setup (Ollama)</h3>
           <p>
-            Create one at
-            <a href="https://console.anthropic.com/" target="_blank" rel="noopener">
-              console.anthropic.com
-            </a>
-            under <em>Settings → API Keys</em>. Opus 4.6 is the default model;
-            you can also use Sonnet 4.6 or Haiku 4.5.
+            Install <a href="https://ollama.com" target="_blank" rel="noopener">Ollama</a>,
+            then run <code>ollama pull qwen3.5:4b</code> and
+            <code>ollama serve</code>. The defaults above will work out of the
+            box.
+          </p>
+          <h3>Remote providers</h3>
+          <p>
+            Point the Base URL at any OpenAI-compatible endpoint (OpenAI,
+            Together, Groq, vLLM, LM Studio, etc.) and paste the
+            corresponding API key and model name.
           </p>
         </div>
       </section>

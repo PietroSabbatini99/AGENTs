@@ -12,7 +12,7 @@ const AGENT_COLORS = {
 
 const state = {
   agents: [],
-  config: { api_key_set: false, api_key_masked: "", model: "" },
+  config: { base_url: "", api_key_set: false, api_key_masked: "", model: "" },
   selectedKb: null,
   sending: false,
 };
@@ -242,18 +242,19 @@ async function loadKbSources(agentKey) {
 }
 
 function renderSettingsTab() {
+  $("#base-url-input").value = state.config.base_url || "";
   const input = $("#api-key-input");
   input.value = "";
   input.placeholder = state.config.api_key_set
     ? `Saved: ${state.config.api_key_masked}`
-    : "sk-ant-…";
+    : "leave blank for Ollama";
   $("#model-input").value = state.config.model || "";
   const status = $("#api-key-status");
   if (state.config.api_key_set) {
-    status.textContent = `API key linked · ${state.config.api_key_masked}`;
+    status.textContent = `API key saved · ${state.config.api_key_masked}`;
     status.className = "api-key-status set";
   } else {
-    status.textContent = "No API key saved yet.";
+    status.textContent = "No API key set (fine for local Ollama).";
     status.className = "api-key-status";
   }
 }
@@ -291,11 +292,6 @@ async function sendMessage() {
   if (state.sending) return;
   const text = chatInput.value.trim();
   if (!text) return;
-
-  if (!state.config.api_key_set) {
-    appendErrorMessage("Link your Anthropic account in Settings first.");
-    return;
-  }
 
   state.sending = true;
   sendBtn.disabled = true;
@@ -499,6 +495,7 @@ $("#add-agent-form").addEventListener("submit", async (e) => {
 $("#settings-form").addEventListener("submit", async (e) => {
   e.preventDefault();
   const form = e.target;
+  const base_url = form.base_url.value;
   const api_key = form.api_key.value;
   const model = form.model.value;
   const status = $("#settings-status");
@@ -506,6 +503,7 @@ $("#settings-form").addEventListener("submit", async (e) => {
   status.className = "status";
 
   const body = {};
+  if (base_url) body.base_url = base_url;
   if (api_key) body.api_key = api_key;
   if (model) body.model = model;
 
@@ -540,13 +538,8 @@ $("#reset-workspace").addEventListener("click", async () => {
 // ---------------------------------------------------------------------------
 
 refreshState().then(() => {
-  if (!state.config.api_key_set) {
-    appendSystemMessage(
-      "Welcome. Open Settings to link your Anthropic API key, then type a brief, ask a specialist (@Atlas), or /discuss a topic."
-    );
-  } else {
-    appendSystemMessage(
-      "Ready. Plain text → team brief. @Atlas <q> → ask one specialist. /discuss <topic> → round-robin."
-    );
-  }
+  appendSystemMessage(
+    `Connected to ${state.config.model} via ${state.config.base_url}. ` +
+    "Plain text → team brief. @Atlas <q> → ask one specialist. /discuss <topic> → round-robin."
+  );
 });
