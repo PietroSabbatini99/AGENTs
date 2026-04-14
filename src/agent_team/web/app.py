@@ -34,6 +34,7 @@ from agent_team.web.config import ConfigStore
 from agent_team.web.orchestrator import ParsedCommand, parse_command
 from agent_team.web.rag import RagStore, extract_text_from_upload
 from agent_team.web.registry import AgentRegistry
+from agent_team.web.router import route_query
 from agent_team.workspace import Workspace
 
 
@@ -289,23 +290,53 @@ def _run_command_stream(team, cmd: ParsedCommand):
 
     def run() -> None:
         try:
-            if cmd.kind == "ask":
+            kind = cmd.kind
+            content = cmd.content
+            specialist = cmd.specialist
+            rounds = cmd.rounds
+            order = None
+
+            # Auto-routing: ask the model who should answer.
+            if kind == "auto":
+                q.put(("speaker", {"label": "→ routing…"}))
+                route = route_query(
+                    client=team.client,
+                    model=team.model,
+                    query=content,
+                    profiles=team._profiles,
+                )
+                kind = route.mode
+                order = route.agents
+                label = {
+                    "ask": f"→ routed to {order[0]}",
+                    "brief": f"→ routed to {', '.join(order)}",
+                    "discuss": f"→ discussion among {', '.join(order)}",
+                }.get(kind, "→ routing")
+                if route.why:
+                    label = f"{label}  ({route.why})"
+                q.put(("speaker", {"label": label}))
+                if kind == "ask":
+                    specialist = team.get_profile(order[0]).name
+
+            if kind == "ask":
                 q.put((
                     "speaker",
-                    {"agent_name": cmd.specialist, "label": f"→ asking {cmd.specialist}"},
+                    {"agent_name": specialist, "label": f"→ asking {specialist}"},
                 ))
-                team.ask(cmd.specialist, cmd.content, on_stream=on_stream)
-            elif cmd.kind == "brief":
-                q.put(("speaker", {"label": "→ briefing the team"}))
-                team.brief(cmd.content, on_stream=on_stream)
-            elif cmd.kind == "discuss":
-                q.put((
-                    "speaker",
-                    {"label": f"→ discussion ({cmd.rounds} round{'s' if cmd.rounds > 1 else ''})"},
-                ))
-                team.discuss(cmd.content, rounds=cmd.rounds, on_stream=on_stream)
+                team.ask(specialist, content, on_stream=on_stream)
+            elif kind == "brief":
+                if order is None:
+                    q.put(("speaker", {"label": "→ briefing the team"}))
+                team.brief(content, on_stream=on_stream, order=order)
+            elif kind == "discuss":
+                if order is None:
+                    q.put((
+                        "speaker",
+                        {"label": f"→ discussion ({rounds} round{'s' if rounds > 1 else ''})"},
+                    ))
+                team.discuss(content, rounds=rounds, on_stream=on_stream, order=order)
             else:
-                error["message"] = f"unknown command kind: {cmd.kind}"
+                error["message"] = f"unknown command kind: {kind}"
         except Exception as e:  # noqa: BLE001 — surface to the browser
             error["message"] = f"{type(e).__name__}: {e}"
         finally:

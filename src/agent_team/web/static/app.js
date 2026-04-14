@@ -326,7 +326,11 @@ async function sendMessage() {
             appendSystemMessage("→ briefing the whole team");
           } else if (kind === "discuss") {
             appendSystemMessage(`→ discussion · ${rounds} round${rounds > 1 ? "s" : ""}`);
+          } else if (kind === "auto") {
+            appendSystemMessage("→ routing your message…");
           }
+        } else if (ev.event === "speaker") {
+          if (ev.data.label) appendSystemMessage(ev.data.label);
         } else if (ev.event === "token") {
           const { agent_key, agent_name, text } = ev.data;
           if (currentAgent !== agent_key) {

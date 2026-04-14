@@ -4,13 +4,13 @@ Parses a user chat message and dispatches it to the right Team pattern:
 
   /ask <name> <question>     → team.ask(name, question)
   @<Name> <question>         → team.ask(Name, question)
-  /brief <idea>              → team.brief(idea)
+  /brief <idea>              → team.brief(idea)          [whole team]
   /discuss <topic> [--rounds N] → team.discuss(topic, rounds=N)
-  (plain text)               → team.brief(text)    [default]
+  (plain text)               → kind="auto"               [router decides]
 
 The orchestrator itself never calls the model — it just normalizes the
-command. The web layer takes the parsed command and runs it against the
-Team while streaming tokens to the browser.
+command. When the kind is "auto" the web layer calls `router.route_query`
+to pick the specialist(s), then runs the chosen pattern.
 """
 
 from __future__ import annotations
@@ -21,7 +21,7 @@ from dataclasses import dataclass
 
 @dataclass
 class ParsedCommand:
-    kind: str               # "ask" | "brief" | "discuss"
+    kind: str               # "ask" | "brief" | "discuss" | "auto"
     content: str            # the question / idea / topic, trimmed
     specialist: str | None = None   # only for "ask"
     rounds: int = 2                  # only for "discuss"
@@ -90,5 +90,5 @@ def parse_command(raw: str, known_names: list[str]) -> ParsedCommand:
                 content=question,
             )
 
-    # Default: treat plain text as a brief to the whole team.
-    return ParsedCommand(kind="brief", content=text)
+    # Default: let the router decide who should answer.
+    return ParsedCommand(kind="auto", content=text)
