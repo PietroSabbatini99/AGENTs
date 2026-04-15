@@ -12,7 +12,15 @@ const AGENT_COLORS = {
 
 const state = {
   agents: [],
-  config: { base_url: "", model: "" },
+  config: {
+    provider: "ollama",
+    ollama_base_url: "",
+    ollama_model: "",
+    anthropic_model: "",
+    has_anthropic_key: false,
+    base_url: "",
+    model: "",
+  },
   selectedKb: null,
   sending: false,
 };
@@ -242,8 +250,30 @@ async function loadKbSources(agentKey) {
 }
 
 function renderSettingsTab() {
-  $("#base-url-input").value = state.config.base_url || "";
-  $("#model-input").value = state.config.model || "";
+  const provider = state.config.provider || "ollama";
+  $$("#settings-form input[name='provider']").forEach((r) => {
+    r.checked = r.value === provider;
+  });
+  applyProviderVisibility(provider);
+
+  $("#ollama-base-url-input").value = state.config.ollama_base_url || "";
+  $("#ollama-model-input").value = state.config.ollama_model || "";
+
+  // We never round-trip the stored key; just tell the user whether one is set.
+  $("#anthropic-api-key-input").value = "";
+  $("#anthropic-api-key-input").placeholder = state.config.has_anthropic_key
+    ? "•••••• (key saved — paste a new one to replace)"
+    : "sk-ant-…";
+  $("#anthropic-key-hint").textContent = state.config.has_anthropic_key
+    ? "A key is saved. Leave blank to keep it."
+    : "No key saved yet. Required to use Claude.";
+  $("#anthropic-model-input").value = state.config.anthropic_model || "";
+}
+
+function applyProviderVisibility(provider) {
+  $$(".provider-fields").forEach((el) => {
+    el.hidden = el.dataset.provider !== provider;
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -483,18 +513,29 @@ $("#add-agent-form").addEventListener("submit", async (e) => {
 // Settings
 // ---------------------------------------------------------------------------
 
+// Live-toggle the provider-specific fieldsets as the radio changes.
+$$("#settings-form input[name='provider']").forEach((r) => {
+  r.addEventListener("change", (e) => applyProviderVisibility(e.target.value));
+});
+
 $("#settings-form").addEventListener("submit", async (e) => {
   e.preventDefault();
   const form = e.target;
-  const base_url = form.base_url.value;
-  const model = form.model.value;
+  const provider = form.provider.value;
   const status = $("#settings-status");
   status.textContent = "";
   status.className = "status";
 
-  const body = {};
-  if (base_url) body.base_url = base_url;
-  if (model) body.model = model;
+  const body = { provider };
+  if (provider === "ollama") {
+    if (form.ollama_base_url.value) body.ollama_base_url = form.ollama_base_url.value;
+    if (form.ollama_model.value) body.ollama_model = form.ollama_model.value;
+  } else if (provider === "anthropic") {
+    // Only send the key when the user actually typed one — empty means keep.
+    const key = form.anthropic_api_key.value.trim();
+    if (key) body.anthropic_api_key = key;
+    if (form.anthropic_model.value) body.anthropic_model = form.anthropic_model.value;
+  }
 
   const r = await fetch("/api/config", {
     method: "POST",
@@ -527,8 +568,11 @@ $("#reset-workspace").addEventListener("click", async () => {
 // ---------------------------------------------------------------------------
 
 refreshState().then(() => {
+  const providerLabel = state.config.provider === "anthropic"
+    ? "Claude API"
+    : "local Ollama";
   appendSystemMessage(
-    `Connected to ${state.config.model} via ${state.config.base_url}. ` +
-    "Plain text → team brief. @Atlas <q> → ask one specialist. /discuss <topic> → round-robin."
+    `Connected to ${state.config.model} via ${providerLabel}. ` +
+    "Plain text → auto-routed. @Atlas <q> → ask one specialist. /discuss <topic> → round-robin."
   );
 });

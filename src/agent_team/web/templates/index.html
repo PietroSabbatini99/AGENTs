@@ -159,18 +159,59 @@
         </header>
 
         <form id="settings-form" class="settings-form">
-          <label>Base URL
-            <input
-              type="text"
-              name="base_url"
-              id="base-url-input"
-              placeholder="http://localhost:11434/v1"
-            >
-          </label>
+          <fieldset class="provider-toggle">
+            <legend>Provider</legend>
+            <label class="radio">
+              <input type="radio" name="provider" value="ollama" checked>
+              <span class="radio-title">Local · Ollama</span>
+              <span class="radio-sub">Free, runs on your machine. Needs the Ollama daemon.</span>
+            </label>
+            <label class="radio">
+              <input type="radio" name="provider" value="anthropic">
+              <span class="radio-title">Claude API · Anthropic</span>
+              <span class="radio-sub">Hosted. Uses your Anthropic API key — pay-per-use.</span>
+            </label>
+          </fieldset>
 
-          <label>Model
-            <input type="text" name="model" id="model-input" placeholder="qwen3.5:4b">
-          </label>
+          <div class="provider-fields" data-provider="ollama">
+            <label>Base URL
+              <input
+                type="text"
+                name="ollama_base_url"
+                id="ollama-base-url-input"
+                placeholder="http://localhost:11434/v1"
+              >
+            </label>
+            <label>Model
+              <input
+                type="text"
+                name="ollama_model"
+                id="ollama-model-input"
+                placeholder="qwen3.5:4b"
+              >
+            </label>
+          </div>
+
+          <div class="provider-fields" data-provider="anthropic" hidden>
+            <label>Anthropic API key
+              <input
+                type="password"
+                name="anthropic_api_key"
+                id="anthropic-api-key-input"
+                placeholder="sk-ant-…"
+                autocomplete="off"
+              >
+              <span class="field-hint" id="anthropic-key-hint"></span>
+            </label>
+            <label>Model
+              <input
+                type="text"
+                name="anthropic_model"
+                id="anthropic-model-input"
+                placeholder="claude-sonnet-4-6"
+              >
+            </label>
+          </div>
 
           <button type="submit">Save settings</button>
           <div id="settings-status" class="status"></div>
@@ -181,8 +222,15 @@
           <p>
             Install <a href="https://ollama.com" target="_blank" rel="noopener">Ollama</a>,
             then run <code>ollama pull qwen3.5:4b</code> and
-            <code>ollama serve</code>. The defaults above will work out of the
-            box.
+            <code>ollama serve</code>. The Ollama defaults will work out of
+            the box.
+          </p>
+          <h3>Claude API (Anthropic)</h3>
+          <p>
+            Get a key from
+            <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">console.anthropic.com</a>,
+            paste it above, and pick a model — <code>claude-sonnet-4-6</code>
+            is the recommended default.
           </p>
         </div>
       </section>

@@ -64,9 +64,14 @@ def create_app(workspace_root: Path) -> FastAPI:
         from agent_team.team import Team
 
         cfg = config_store.get()
+        if cfg.provider == "anthropic" and not cfg.anthropic_api_key:
+            raise HTTPException(
+                status_code=400,
+                detail="Anthropic is selected but no API key is set. Add one in Settings.",
+            )
         client = OpenAI(
             base_url=cfg.base_url,
-            api_key="ollama",
+            api_key=cfg.api_key,
         )
         return Team(
             workspace=workspace,
@@ -113,8 +118,11 @@ def create_app(workspace_root: Path) -> FastAPI:
     async def update_config(request: Request):
         body = await request.json()
         cfg = config_store.update(
-            base_url=body.get("base_url"),
-            model=body.get("model"),
+            provider=body.get("provider"),
+            ollama_base_url=body.get("ollama_base_url"),
+            ollama_model=body.get("ollama_model"),
+            anthropic_api_key=body.get("anthropic_api_key"),
+            anthropic_model=body.get("anthropic_model"),
         )
         return {"config": cfg.public_dict()}
 
